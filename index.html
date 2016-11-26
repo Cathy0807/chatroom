@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WS聊天室</title>
+    <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.css">
+    <style>
+        .username{
+            color: #00b3ee;
+            cursor: pointer;
+        }
+    </style>
+    <script src="http://cdn.bootcss.com/jquery/1.11.1/jquery.min.js"></script>
+</head>
+<body>
+<div class="panel panel-default">
+    <div class="panel-heading">聊天室</div>
+    <div class="panel-body">
+        <ul class="list-group" id="list">
+
+        </ul>
+    </div>
+    <div class="panel-footer">
+        <input type="text" class="form-control" id="content">
+        <button class="btn btn-primary" id="btn">发言</button>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    var socket=io.connect(`ws://${location.hostname}:${location.port}/`);
+    socket.on('connect',function(){
+        console.log('连接成功');
+        var room=location.hash;
+        if(room.startsWith('#')){
+           socket.emit('join',room.slice(1));
+        }
+    });
+    socket.on('disconnect',function(){
+        console.log('断开连接');
+    });
+    //客户端监听服务器端的message事件，当收到服务器端发送的消息时，执行对应的回调函数
+   /* socket.on('message',function(msg){
+        console.log(msg);
+    });*/
+
+    /*
+    * 1.给发言的按钮绑定onclick事件，当事件发生的时候先取到文本框的内容，并发送给服务器；
+    * 2.服务器收到消息后把此广播给所有的客户端；
+    * 3.客户端收到消息后要把此消息添加到消息列表里
+    * */
+    var oBtn=document.getElementById('btn');
+    var content=document.getElementById('content');
+    var oList=document.getElementById('list');
+    var aLi=
+    oBtn.onclick= function () {
+        var value=content.value;
+        socket.send(value);
+        content.value='';
+    };
+    socket.on('messages',function(messages){
+       oList.innerHTML=messages.map(function(msgObj){
+           return `<li class="list-group-item"><span class="username">${msgObj.username}</span>:${msgObj.content}<span class="pull-right">${msgObj.createAt}</span></li>`
+       }).join('');
+
+    });
+    socket.on('message',function(msgObj){ //username content createAt
+        var oLi=document.createElement('li');
+        oLi.innerHTML=`<span class="username">${msgObj.username}</span>:${msgObj.content}<span class="pull-right">${msgObj.createAt}</span>`;
+        oLi.className='list-group-item';
+        oList.appendChild(oLi);
+    });
+    $('.list-group').delegate('.username','click',function(){
+        content.value=`@${$(this).html()} `;
+
+    })
+</script>
+</body>
+</html>
